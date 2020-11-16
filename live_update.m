@@ -58,7 +58,7 @@ end
 
 CurrentSensor = (A(:,2)' - 2077) * 0.00653;
 CurrentSensor2 = smooth(CurrentSensor, 5001,'sgolay',9).';
-InputVoltage = A(:,6)' * 0.003222656; % 0.000805664 * 4
+InputVoltage = A(:,6)' * 0,004833984; % 0.000805664 * 6
 
 Angle = (A(:,10)' - 32767)./ 10;
 Velocity = (A(:,14)' - 32767)./ 10;
@@ -131,7 +131,7 @@ while (ishandle(aaa) && ishandle(velocity) && ishandle(current))
 
     CurrentSensor = (A(:,2)' - 2077) * 0.00653;
     CurrentSensor2 = smooth(CurrentSensor, 105,'sgolay',9).';
-    InputVoltage = A(:,6)' * 0.003222656; % 0.000805664 * 4
+    InputVoltage = A(:,6)' * 0,004833984; % 0.000805664 * 6
     Angle = (A(:,10)' - 32767)./ 10;
     Velocity = (A(:,14)' - 32767)./ 10;
     Velocity2 = smooth(Velocity, 210,'sgolay',3).';

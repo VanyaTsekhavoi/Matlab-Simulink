@@ -3,7 +3,7 @@ function Graph_Viewer
 sampleLength = 1/12500;
 
 
-fid = fopen('~/Documents/Projects/File', 'r'); %file with statistic
+fid = fopen('~/Documents/Projects/Matlab-Simulink/ReqFile','r'); %file with statistic
 if fid == -1
     error('File is not opened');
 end
@@ -51,9 +51,9 @@ hold off
 
 %Bytes in Memory transmission 
 
-O = fread(fid,Inf,'uint8=>float','l');
+O = fread(fid,Inf,'uint8=>double','l');
 
-f = find(O == 255,26);
+f = find(O == 255,44);
 
 A = O(f(end):end);
 A = A(1:(length(A) - mod(length(A),21)));
@@ -66,20 +66,35 @@ end
     
 dataLength = length(A);
 
-CurrentSensor = (A(:,2)' - 2077) * 0.00653;
-%InputVoltage = A(:,6)' * 0.003222656; % 0.000805664 * 4
-NewVelocity = (A(:,6)' - 32767)./ 10;
-CosOut = A(:,10)' - 2076;
-SinOut = A(:,14)' - 2048;
-Cycles = A(:,18)';
+%---------------------instant Characteristics------------------------------
+
+CurrentSensor = (A(:,2)' - 32767)./ 10000;            % - 2067.5) * 0.00653;
+InputVoltage = (A(:,6)' - 32767)./ 1000;             % * 00,004833984; % 0.000805664 * 6
 Angle = (A(:,10)' - 32767)./ 10;
-Velocity = (A(:,14)' - 32767)./ 10;
+Velocity = (A(:,14)' - 32767)./ 100;
+Cycles = A(:,18)';
+
+%--------------------------------------------------------------------------
+
+%---------------------Required Characteristics-----------------------------
+CurrentSensor = (A(:,2)' - 32767)./ 10000;
+ReqAngle = (A(:,6)' - 32767)./ 10;
+ReqVelocity = (A(:,10)' - 32767)./ 100;
+ReqAcceleration = (A(:,14)' - 32767)./ 100;
+Cycles = A(:,18)';
 %{%}
 
-
+for l = 1:length(ReqAcceleration)
+    if ReqAcceleration(l) > 50
+        ReqAcceleration(l) = 50;
+    end
+    if ReqAcceleration(l) < -50
+        ReqAcceleration(l) = -50;
+    end
+end
 t = 1:dataLength;
 
-figure
+figure('Name','Cycles')
 plot(t,Cycles);
 %plot(CosOut,SinOut,'g');
 
@@ -94,44 +109,25 @@ plot(t,Cycles);
 CurrentSensor2 = smooth(CurrentSensor, 5001,'sgolay',9).';
 x = mean(CurrentSensor)
 
-figure
+figure('Name','Current')
 %AA = (A-2048) * 0.004355;
 plot(t,CurrentSensor2,'b');
 hold on;
 plot(t,CurrentSensor,'r');
 hold off;
 
-figure
+InputVoltage2 = smooth(InputVoltage, 5001,'sgolay',9).';
+
+figure('Name','Voltage')
 hold on;
-%plot(t,InputVoltage,'r');
+plot(t,InputVoltage2,'r');
+hold on;
+plot(t,InputVoltage,'g');
 hold off;
-
-
-atn = zeros(1,dataLength);
-atn2 = zeros(1,dataLength);
-
-for l=1:dataLength
-    atn(l)=atan(SinOut(l)/CosOut(l));
-    atn2(l)=atan2(SinOut(l),CosOut(l));% + 3.14;
-end
-
-UNwrap = unwrap(atn2) ./2;
-
-
-%RC filterK = 0.05;
-K = 0.2;
-K_1 = 1 - K;
-atn3 = atn2;
-for i=2:dataLength
-    atn3(i) = K_1 * atn3(i-1) + K * atn3(i);% + K * atn2(i-1);    
-end
 
 UNwrap = Angle;
 
-figure
-plot(t,atn2);
-hold on
-plot(t,atn3, 'g');
+figure('Name','Angle')
 hold on;
 plot(t,UNwrap,'r');
 hold off
@@ -139,34 +135,39 @@ hold off
 
 %Производная по времени угла ----------------------------------------------
 
-Velocity3 = zeros(1,dataLength);
-
-for l=2:dataLength
-  Velocity3(l) = (atn2(l) - atn2(l-1)) / sampleLength;
-  if atn2(l-1)- atn2(l) > 3.14
-    Velocity3(l) = (atn2(l) + 6.28 - atn2(l-1)) / sampleLength;
-  elseif atn2(l-1) - atn2(l) < -3.14
-    Velocity3(l) = -(6.28 - atn2(l) + atn2(l-1)) / sampleLength;
-  end
-end
-Velocity3 = Velocity3 ./ Cycles;  
-Velocity3 = Velocity3 ./2; %
-
-
 Velocity4 = smooth(Velocity, 1501,'sgolay',1).';% = Velocity;%
-Velocity5 = smooth(NewVelocity, 1501,'sgolay',1).';
 
-figure
+figure('Name','Velocity')
 %
 %plot(t, Velocity3);
 hold on;
 plot (t,Velocity,'m')
 hold on
-plot(t, NewVelocity, 'g')
+%plot(t, ReqAcceleration, 'g')
 hold off;
 
-min(atn2)
-max(atn2)
 fclose(fid);
-save('Variables.mat','Velocity3','Velocity4','InputVoltage','CurrentSensor2','Cycles','t')
+
+%--------------------Position and Velocity error---------------------------
+
+positionError = (A(:,2)' - 32767)./ 1000;
+velocityError = (A(:,6)' - 32767)./ 1000;
+
+figure('Name','Error Position')
+plot(t, positionError, 'r');
+
+figure('Name','Error Velocity')
+plot(t, velocityError, 'g');
+
+%------------------------Computing for model-------------------------------
+
+FFCurrent = repelem(((ReqAcceleration .* 0.0000875 + 0.00063125) ./ 0.0175), Cycles);   %(((A(:,6)' - 32767)./ 10) .* 0.0000875 + 0.00063125) ./ 0.0175;
+FFAngle = repelem(ReqAngle,Cycles);
+FFVelocity = repelem(ReqVelocity,Cycles);
+FFLength = length(FFCurrent);
+
+%--------------------------------------------------------------------------
+
+save('Variables.mat','Velocity','UNwrap','CurrentSensor','t','sampleLength','InputVoltage')
+save('Simulink.mat','FFVelocity','FFAngle','FFCurrent','FFLength','Cycles','sampleLength')
 end

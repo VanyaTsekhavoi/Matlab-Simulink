@@ -8,32 +8,29 @@ clear
 load('Variables')
 %s = tf('s')
 % Сигналы
-Ts=0.0001;
+Ts=sampleLength;
 J = 0.0000875;
 L = 0.0225;
-Mtr = 6.3125e-04;
+Mtr = 1.4917e-04;
 kconstruct = 0.0178;
 
-y = Velocity4;
+y = Velocity;
 u = InputVoltage;
 D=iddata(y.',u.',Ts);
 
 %Механическая часть системы
-Res = diff(y(5000:8000))/Ts;   %5 для сэмплирования = микроконтроллера,2 для учета половины заполнения буфера
-Res = Res ./ Cycles(5001:8000);
+Res = diff(y(3500:4000))/Ts;   %discrete time = sampleLength * Cycles
+Res = Res ./ Cycles(3501:4000);
 Res = smooth(Res, 5001,'sgolay',9).';
 l=length(Res);
-tt = zeros(1,l);
-for i=1:l
-    tt(i)=i;
-end
+tt = 1:l;
 figure 
 plot(tt,Res)
 Rez = mean(Res);
 Rez = Rez*J
 
-I = CurrentSensor2(5001:8000);
-k = (Res .*J + Mtr) ./ (I + 0.7875);
+I = CurrentSensor(3501:4000);
+k = (Res .*J + Mtr) ./ (I);
 
 figure
 plot(tt,k)
